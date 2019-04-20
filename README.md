@@ -3,16 +3,20 @@ Bash scripts (with udev rules) to automatically ingest video files to a target d
 
 # Setup
 
-* Clone the repository to a local folder. In this example /home/user/dev/auto-video-ingest
-* Create udev rules in /etc/udev/rules.d/99-auto-video-ingest.rules
-  KERNEL=="mmcblk0p[0-9]", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /home/user/dev/auto-video-ingestscripts/scripts/auto-video-ingest-hook $kernel"
-  KERNEL=="sd*[0-9]", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /home/user/dev/auto-video-ingest/scripts/auto-video-ingest-hook $kernel"
-* Add the auto-video-ingest-watchdog to your gnome startup applications
-* Create configuration in scripts/auto-video-ingest.cfg (based on auto-video-ingest.cfg.example)
-* Create a auto-video-ingest.cfg file on all drives you with to auto ingest with the following content (example!):
-  NAME="Fatshark HDO"     # how should the target folder be named (i.e. camera name)
-  SRCDIR="DCIM/100DSCIM"  # where do the files you wish to copy reside (i.e. DCIM)
-  SUBFOLDER="RC"          # in which subfolder should the files be copied (i.e. RC)
+1. Clone the repository to a local folder. In this example /home/user/dev/auto-video-ingest
+2. Create udev rules in /etc/udev/rules.d/99-auto-video-ingest.rules
+   ```
+   KERNEL=="mmcblk0p[0-9]", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /home/user/dev/auto-video-ingestscripts/scripts/auto-video-ingest-hook $kernel"
+   KERNEL=="sd*[0-9]", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /home/user/dev/auto-video-ingest/scripts/auto-video-ingest-hook $kernel"
+   ```
+3. Add the auto-video-ingest-watchdog to your gnome startup applications
+4. Create configuration in scripts/auto-video-ingest.cfg (based on auto-video-ingest.cfg.example)
+5. Create a auto-video-ingest.cfg file on all drives you with to auto ingest with the following content (example!):
+   ```
+   NAME="Fatshark HDO"     # how should the target folder be named (i.e. camera name)
+   SRCDIR="DCIM/100DSCIM"  # where do the files you wish to copy reside (i.e. DCIM)
+   SUBFOLDER="RC"          # in which subfolder should the files be copied (i.e. RC)
+   ```
 
 # Components and how it works
 
