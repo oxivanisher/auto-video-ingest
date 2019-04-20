@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# this script will to be run as root
+MYDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source $MYDIR/auto-video-ingest.cfg
+
+function log {
+	DATE=$(date "+%Y-%m-%d %H:%M:%S")
+	echo "$DATE $1" >>$LOGFILE
+	notify-send "auto-video-ingest" "$1"
+}
+
+log "udev hook called for device $1"
+
+# ig the hook is the first thing running, make sure the file is writable by
+# the other scripts
+chmod 666 $LOGFILE
+
+/usr/bin/install -m 666 -o oxi -g oxi /dev/null /tmp/auto-video-ingest.trigger
+echo "$1" >/tmp/auto-video-ingest.trigger

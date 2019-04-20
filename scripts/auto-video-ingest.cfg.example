@@ -1,0 +1,2 @@
+TARGET=/path/to/your/media-folder
+LOGFILE=/tmp/auto-video-ingest.log

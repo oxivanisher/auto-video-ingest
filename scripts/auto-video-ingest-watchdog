@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# this script needs to be run as user
+MYDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source $MYDIR/auto-video-ingest.cfg
+
+PIDFILE=/tmp/auto-video-ingest-watchdog.pid
+if [ -f $PIDFILE ];
+then
+	echo "Watchdog already running! Exiting"
+	exit 1
+else
+	echo $$ > /tmp/auto-video-ingest-watchdog.pid
+	trap "rm -f $PIDFILE" EXIT
+fi
+
+function log {
+	DATE=$(date "+%Y-%m-%d %H:%M:%S")
+	echo "$DATE $1" >>$LOGFILE
+}
+
+# cleaning stale triggers
+rm /tmp/auto-video-ingest.trigger >/dev/null 2>&1
+
+# beginning to loop
+log "Watchdog beginning to watch dogs"
+
+while true;
+do
+	if [ -f /tmp/auto-video-ingest.trigger ];
+	then
+		log "Watchdog found a bone in /tmp/auto-video-ingest.trigger."
+		sleep 1
+		DEVICE=/dev/$(cat /tmp/auto-video-ingest.trigger) /bin/bash $MYDIR/auto-video-ingest 
+		rm /tmp/auto-video-ingest.trigger
+	fi
+	sleep 1
+done

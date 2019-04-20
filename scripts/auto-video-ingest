@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# this script needs to be run as user
+MYDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source $MYDIR/auto-video-ingest.cfg
+
+function log {
+	DATE=$(date "+%Y-%m-%d %H:%M:%S")
+	echo "$DATE $1" >>$LOGFILE
+	notify-send "auto-video-ingest" "$1"
+}
+
+log "auto-video-ingest called for device $DEVICE"
+
+# this is only required for the stupid usb readers which are slow. and those are
+# only required because the intel nuc can not read one sandisk... thanks obama
+START=$(date +%s)
+for try in {1..10} ; do
+	MOUNTPOINT=$(findmnt -S $DEVICE -o TARGET -n)
+    [[ ! -z "$MOUNTPOINT" ]] && break
+done
+DURATION=$(( $(date +%s) - $START ))
+
+if [ -z "$MOUNTPOINT" ];
+then
+	log "SD card mount point for $DEVICE not found after 10 seconds. Exiting"
+	exit 0
+else
+	log "Mount for SD card $DEVICE found on $MOUNTPOINT after $DURATION seconds"
+fi
+
+# Checking if SD card is configured for auto-video-ingest
+if [ ! -f $MOUNTPOINT/auto-video-ingest.cfg ];
+then
+	log "Not auto-video-ingest configured SD card. Exiting"
+	exit 0
+else
+	source $MOUNTPOINT/auto-video-ingest.cfg
+fi
+
+# Checking if SD card configuration is valid
+if [ -z "$NAME" ];
+then
+	log "auto-video-ingest cfg NAME not found. Exiting..."
+	exit 0
+fi
+if [ -z "$SRCDIR" ];
+then
+	log "auto-video-ingest cfg SRCDIR not found. Exiting..."
+	exit 0
+fi
+if [ -z "$SUBFOLDER" ];
+then
+	log "auto-video-ingest cfg SUBFOLDER not found. Exiting..."
+	exit 0
+fi
+
+# ensure mounted NAS
+if [ -z "$(mount | grep $TARGET)" ];
+then
+	log "NAS not mounted on $TARGET. Exiting"
+	exit 1
+fi
+
+# creating definitive target directory variable
+TARGETDIR=Media/$SUBFOLDER/$(date +%Y)/$(date +%Y-%m-%d)
+
+# creating target dir
+mkdir -p "$TARGET/$TARGETDIR/$NAME"
+if [ ! -d "$TARGET/$TARGETDIR/$NAME" ];
+then
+	log "Unable to create target directory. Exiting"
+	exit 1
+fi
+
+# doing the actual move and cleanup
+log "Moving files to $TARGET/$TARGETDIR/$NAME"
+rsync -r --remove-source-files --log-file=$LOGFILE "$MOUNTPOINT/$SRCDIR/" "$TARGET/$TARGETDIR/$NAME"
+log "File moving finished. Unmounting SD card"
+sync
+umount $MOUNTPOINT
