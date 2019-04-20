@@ -14,7 +14,8 @@ Bash scripts (with udev rules) to automatically ingest video files to a target d
 5. Create a auto-video-ingest.cfg file on all drives you with to auto ingest with the following content (example!):
    ```
    NAME="Fatshark HDO"     # how should the target folder be named (i.e. camera name)
-   SRCDIR="DCIM/100DSCIM"  # where do the files you wish to copy reside (i.e. DCIM)
+   SRCDIRS="DCIM/100DSCIM" # where do the files you wish to copy reside (i.e. DCIM). You can add multiple folders. Don't use spaces in names!
+   EXCLUDES=".BIN *.XML"   # do not copy files matching the excludes. You can add multiple excludes but need to add at least one. Don't use spaces in names!
    SUBFOLDER="RC"          # in which subfolder should the files be copied (i.e. RC)
    ```
 

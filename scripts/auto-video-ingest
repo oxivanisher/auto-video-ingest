@@ -44,9 +44,14 @@ then
 	log "auto-video-ingest cfg NAME not found. Exiting..."
 	exit 0
 fi
-if [ -z "$SRCDIR" ];
+if [ -z "$SRCDIRS" ];
 then
-	log "auto-video-ingest cfg SRCDIR not found. Exiting..."
+	log "auto-video-ingest cfg SRCDIRS not found. Exiting..."
+	exit 0
+fi
+if [ -z "$EXCLUDES" ];
+then
+	log "auto-video-ingest cfg EXCLUDES not found. Exiting..."
 	exit 0
 fi
 if [ -z "$SUBFOLDER" ];
@@ -75,7 +80,19 @@ fi
 
 # doing the actual move and cleanup
 log "Moving files to $TARGET/$TARGETDIR/$NAME"
-rsync -r --remove-source-files --log-file=$LOGFILE "$MOUNTPOINT/$SRCDIR/" "$TARGET/$TARGETDIR/$NAME"
+
+# making sure the excludes file is empty
+truncate -s 0 /tmp/auto-video-ingest.excludes
+for EXCLUDE in $EXCLUDES;
+do
+	echo "$EXCLUDE" >>/tmp/auto-video-ingest.excludes
+done
+
+for LOOPSRCDIR in $SRCDIRS;
+do
+	rsync -r --remove-source-files --log-file=$LOGFILE --exclude-from=/tmp/auto-video-ingest.excludes  "$MOUNTPOINT/$LOOPSRCDIR/" "$TARGET/$TARGETDIR/$NAME"
+done
+rm /tmp/auto-video-ingest.excludes
 log "File moving finished. Unmounting SD card"
 sync
 umount $MOUNTPOINT
