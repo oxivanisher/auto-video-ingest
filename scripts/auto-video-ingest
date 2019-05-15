@@ -41,22 +41,21 @@ fi
 # Checking if SD card configuration is valid
 if [ -z "$NAME" ];
 then
-	log "auto-video-ingest cfg NAME not found. Exiting..."
+	log "auto-video-ingest cfg NAME not set. Exiting..."
 	exit 0
 fi
 if [ -z "$SRCDIRS" ];
 then
-	log "auto-video-ingest cfg SRCDIRS not found. Exiting..."
+	log "auto-video-ingest cfg SRCDIRS not set. Exiting..."
 	exit 0
 fi
-if [ -z "$EXCLUDES" ];
+if [ ! -z ${EXCLUDES+x} ];
 then
-	log "auto-video-ingest cfg EXCLUDES not found. Exiting..."
-	exit 0
+	log "auto-video-ingest cfg EXCLUDES not set."
 fi
 if [ -z "$SUBFOLDER" ];
 then
-	log "auto-video-ingest cfg SUBFOLDER not found. Exiting..."
+	log "auto-video-ingest cfg SUBFOLDER not set. Exiting..."
 	exit 0
 fi
 
