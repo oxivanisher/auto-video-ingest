@@ -89,7 +89,7 @@ done
 
 for LOOPSRCDIR in $SRCDIRS;
 do
-	rsync -r --remove-source-files --log-file=$LOGFILE --exclude-from=/tmp/auto-video-ingest.excludes  "$MOUNTPOINT/$LOOPSRCDIR/" "$TARGET/$TARGETDIR/$NAME"
+	rsync -r --backup --suffix="_$(date +%H-%M-%S)" --remove-source-files --log-file=$LOGFILE --exclude-from=/tmp/auto-video-ingest.excludes  "$MOUNTPOINT/$LOOPSRCDIR/" "$TARGET/$TARGETDIR/$NAME"
 done
 rm /tmp/auto-video-ingest.excludes
 log "File moving finished. Unmounting SD card"
