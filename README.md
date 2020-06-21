@@ -6,8 +6,8 @@ Bash scripts (with udev rules) to automatically ingest video files to a target d
 1. Clone the repository to a local folder. In this example /home/user/dev/auto-video-ingest
 2. Create udev rules in /etc/udev/rules.d/99-auto-video-ingest.rules
    ```
-   KERNEL=="mmcblk0p[0-9]", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /home/user/dev/auto-video-ingestscripts/scripts/auto-video-ingest-hook $devpath"
-   KERNEL=="sd*[0-9]", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /home/user/dev/auto-video-ingest/scripts/auto-video-ingest-hook $devpath"
+   KERNEL=="mmcblk0p[0-9]", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /home/user/dev/auto-video-ingestscripts/scripts/auto-video-ingest-hook $kernel"
+   KERNEL=="sd*[0-9]", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /home/user/dev/auto-video-ingest/scripts/auto-video-ingest-hook $kernel"
    ```
 3. Add the auto-video-ingest-watchdog to your gnome startup applications
 4. Create configuration in scripts/auto-video-ingest.cfg (based on auto-video-ingest.cfg.example)

@@ -16,5 +16,6 @@ log "udev hook called for device $1"
 # the other scripts
 chmod 666 $LOGFILE
 
-/usr/bin/install -m 666 -o oxi -g oxi /dev/null /tmp/auto-video-ingest.trigger
-echo "$1" >/tmp/auto-video-ingest.trigger
+echo "$1" >/tmp/auto-video-ingest.trigger_tmp
+/usr/bin/install -m 666 -o oxi -g oxi /tmp/auto-video-ingest.trigger_tmp /tmp/auto-video-ingest.trigger
+rm /tmp/auto-video-ingest.trigger_tmp
