@@ -18,6 +18,7 @@ Bash scripts (with udev rules) to automatically ingest video files to a target d
    EXCLUDES=".BIN *.XML"   # do not copy files matching the excludes. You can add multiple excludes but need to add at least one. Don't use spaces in names!
    SUBFOLDER="RC"          # in which subfolder should the files be copied (i.e. RC)
    ```
+6. Ubuntu disabled media auto mounting with 21.10. To reenable it, run `gsettings set org.gnome.desktop.media-handling automount true` and restart gnome.
 
 # Components and how it works
 
