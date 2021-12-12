@@ -4,6 +4,9 @@
 MYDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $MYDIR/auto-video-ingest.cfg
 
+# since ubuntu seems to deactivate the required mount, we will set it at every startup
+/usr/bin/gsettings set org.gnome.desktop.media-handling automount true
+
 PIDFILE=/tmp/auto-video-ingest-watchdog.pid
 if [ -f $PIDFILE ];
 then
