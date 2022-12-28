@@ -26,7 +26,7 @@ function log {
 rm /tmp/auto-video-ingest.trigger >/dev/null 2>&1
 
 # beginning to loop
-log "Watchdog beginning to watch dogs"
+log "Watchdog begins to watch for bones"
 
 while true;
 do
@@ -34,7 +34,10 @@ do
 	then
 		log "Watchdog found a bone in /tmp/auto-video-ingest.trigger."
 		sleep 1
-		DEVICE=/dev/$(cat /tmp/auto-video-ingest.trigger) /bin/bash $MYDIR/auto-video-ingest 
+		cat /tmp/auto-video-ingest.trigger | while read line || [[ -n $device ]];
+		do
+			DEVICE=/dev/$device /bin/bash $MYDIR/auto-video-ingest
+		done
 		rm /tmp/auto-video-ingest.trigger
 	fi
 	sleep 1

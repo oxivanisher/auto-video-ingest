@@ -12,10 +12,17 @@ function log {
 
 log "udev hook called for device $1"
 
-# ig the hook is the first thing running, make sure the file is writable by
-# the other scripts
-chmod 666 $LOGFILE
+# if the hook is the first thing running, make sure the file is writable by
+# the other scripts for DESKTOP_USER from the config.
+chown $DESKTOP_USER $LOGFILE
 
-echo "$1" >/tmp/auto-video-ingest.trigger_tmp
-/usr/bin/install -m 666 -o oxi -g oxi /tmp/auto-video-ingest.trigger_tmp /tmp/auto-video-ingest.trigger
-rm /tmp/auto-video-ingest.trigger_tmp
+if [ -f /tmp/auto-video-ingest.trigger ];
+then
+	# Adding the new device to the existing trigger file
+	echo "$1" >>/tmp/auto-video-ingest.trigger
+else
+	# We need to create a new file for the watchdog
+	echo "$1" >/tmp/auto-video-ingest.trigger_tmp
+	/usr/bin/install -m 666 -o $DESKTOP_USER -g $DESKTOP_USER /tmp/auto-video-ingest.trigger_tmp /tmp/auto-video-ingest.trigger
+	rm /tmp/auto-video-ingest.trigger_tmp
+fi
