@@ -1,37 +1,10 @@
 #!/bin/bash
 
-# this script will to be run as root
+# this script will to be run as root and has no permissions what so ever.
+# just don't try to log anything, it won't work.
 MYDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $MYDIR/auto-video-ingest.cfg
 
-function log {
-	DATE=$(date "+%Y-%m-%d %H:%M:%S")
-	echo "$DATE $1" >>$LOGFILE
-}
-
-PIDFILE=/tmp/auto-video-ingest-hook.pid
-while [ -f $PIDFILE ];
-do
-	log "Another hook is already running, waiting a moment with $1."
-	sleep .1
-done
-
-echo $$ > $PIDFILE
-trap "rm -f $PIDFILE" EXIT
-
-log "udev hook called for device $1"
-
-# if the hook is the first thing running, make sure the file is writable by
-# the other scripts for DESKTOP_USER from the config.
-chown $DESKTOP_USER $LOGFILE
-
-if [ -f /tmp/auto-video-ingest.trigger ];
-then
-	# Adding the new device to the existing trigger file
-	echo "$1" >>/tmp/auto-video-ingest.trigger
-else
-	# We need to create a new file for the watchdog
-	echo "$1" >/tmp/auto-video-ingest.trigger_tmp
-	/usr/bin/install -m 666 -o $DESKTOP_USER -g $DESKTOP_USER /tmp/auto-video-ingest.trigger_tmp /tmp/auto-video-ingest.trigger
-	rm /tmp/auto-video-ingest.trigger_tmp
-fi
+echo "$1" >/tmp/auto-video-ingest.trigger_tmp
+/usr/bin/install -m 666 -o $DESKTOP_USER -g $DESKTOP_USER /tmp/auto-video-ingest.trigger_tmp /tmp/auto-video-ingest.trigger.$1
+rm /tmp/auto-video-ingest.trigger_tmp
