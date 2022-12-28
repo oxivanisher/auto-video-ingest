@@ -16,7 +16,7 @@ log "Auto-video-ingest called for device $DEVICE"
 # only required because the intel nuc can not read one sandisk... thanks obama
 START=$(date +%s)
 for try in {1..50} ; do
-	MOUNTPOINT=$(findmnt -S $DEVICE -o TARGET -n)
+	MOUNTPOINT=$(findmnt --source $DEVICE --output TARGET --noheadings)
     [[ ! -z "$MOUNTPOINT" ]] && break
 	sleep .2
 done
@@ -24,7 +24,7 @@ DURATION=$(( $(date +%s) - $START ))
 
 if [ -z "$MOUNTPOINT" ];
 then
-	log "No mount point for SD card $DEVICE found after 3 seconds. Exiting"
+	log "No mount point for SD card $DEVICE found after 10 seconds. Exiting"
 	exit 0
 else
 	log "Mount for SD card $DEVICE found on $MOUNTPOINT after $DURATION seconds"

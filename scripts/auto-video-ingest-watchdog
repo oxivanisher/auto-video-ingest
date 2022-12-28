@@ -35,7 +35,7 @@ do
 	do
 		log "Watchdog: Found a bone in $DEVICEFILE."
 		sleep .5
-		DEVICE=/dev/$(cat $DEVICEFILE) /bin/bash $MYDIR/auto-video-ingest
+		DEVICE="/dev/$(cat $DEVICEFILE)" /bin/bash $MYDIR/auto-video-ingest
 		log "Watchdog: Finished processing $DEVICEFILE."
 		rm $DEVICEFILE
 	done
