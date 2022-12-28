@@ -28,6 +28,7 @@ rm /tmp/auto-video-ingest.trigger.* >/dev/null 2>&1
 # beginning to loop
 log "Watchdog: Begins to watch for bones"
 
+shopt -s nullglob
 while true;
 do
 	for DEVICEFILE in /tmp/auto-video-ingest.trigger.*;
