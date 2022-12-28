@@ -7,8 +7,17 @@ source $MYDIR/auto-video-ingest.cfg
 function log {
 	DATE=$(date "+%Y-%m-%d %H:%M:%S")
 	echo "$DATE $1" >>$LOGFILE
-	notify-send "auto-video-ingest" "$1"
 }
+
+PIDFILE=/tmp/auto-video-ingest-hook.pid
+while [ -f $PIDFILE ];
+do
+	log "Another hook is already running, waiting a moment with $1."
+	sleep .1
+done
+
+echo $$ > $PIDFILE
+trap "rm -f $PIDFILE" EXIT
 
 log "udev hook called for device $1"
 

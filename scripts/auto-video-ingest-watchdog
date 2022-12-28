@@ -13,7 +13,7 @@ then
 	echo "Watchdog already running! Exiting"
 	exit 1
 else
-	echo $$ > /tmp/auto-video-ingest-watchdog.pid
+	echo $$ > $PIDFILE
 	trap "rm -f $PIDFILE" EXIT
 fi
 
