@@ -10,21 +10,21 @@ function log {
 	notify-send "auto-video-ingest" "$1"
 }
 
-log "auto-video-ingest called for device $DEVICE"
+log "Auto-video-ingest called for device $DEVICE"
 
 # this is only required for the stupid usb readers which are slow. and those are
 # only required because the intel nuc can not read one sandisk... thanks obama
 START=$(date +%s)
-for try in {1..10} ; do
+for try in {1..50} ; do
 	MOUNTPOINT=$(findmnt -S $DEVICE -o TARGET -n)
     [[ ! -z "$MOUNTPOINT" ]] && break
-	sleep 1
+	sleep .2
 done
 DURATION=$(( $(date +%s) - $START ))
 
 if [ -z "$MOUNTPOINT" ];
 then
-	log "SD card mount point for $DEVICE not found after 3 seconds. Exiting"
+	log "No mount point for SD card $DEVICE found after 3 seconds. Exiting"
 	exit 0
 else
 	log "Mount for SD card $DEVICE found on $MOUNTPOINT after $DURATION seconds"
@@ -33,7 +33,7 @@ fi
 # Checking if SD card is configured for auto-video-ingest
 if [ ! -f $MOUNTPOINT/auto-video-ingest.cfg ];
 then
-	log "Not auto-video-ingest configured SD card. Exiting"
+	log "Not auto-video-ingest configured SD card. Exiting and ignoring it."
 	exit 0
 else
 	source $MOUNTPOINT/auto-video-ingest.cfg
@@ -88,11 +88,13 @@ do
 	echo "$EXCLUDE" >>/tmp/auto-video-ingest.excludes
 done
 
+MOVE_START=$(date +%s)
 for LOOPSRCDIR in $SRCDIRS;
 do
 	rsync -r --backup --suffix="_$(date +%H-%M-%S)" --remove-source-files --log-file=$LOGFILE --exclude-from=/tmp/auto-video-ingest.excludes "$MOUNTPOINT/$LOOPSRCDIR/" "$TARGET/$TARGETDIR/$NAME"
 done
+MOVE_FINISHED=$(date +%s)
 rm /tmp/auto-video-ingest.excludes
-log "File moving finished. Unmounting SD card"
+log "File moving finished after $(( $MOVE_FINISHED - $MOVE_START )) seconds. Unmounting SD card."
 sync
 umount $MOUNTPOINT
