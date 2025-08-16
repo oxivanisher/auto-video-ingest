@@ -3,15 +3,15 @@ Bash scripts (with udev rules) to automatically ingest video files to a target d
 
 # Setup
 
-1) Clone the repository to a local folder. In this example `/home/DESKTOP_USER/dev/auto-video-ingest` will be used.
-1) Configure the `DESKTOP_USER` variable in `/home/DESKTOP_USER/dev/auto-video-ingest/scripts/auto-video-ingest.cfg` to the primary user for which all the magic will run.
+1) Clone the repository to a local folder. In this example `/opt/auto-video-ingest` will be used.
+1) Configure the `DESKTOP_USER` variable in `/opt/auto-video-ingest/scripts/auto-video-ingest.cfg` to the primary user for which all the magic will run.
 1) Create udev rules in `/etc/udev/rules.d/99-auto-video-ingest.rules`
    ```
-   KERNEL=="mmcblk0p[0-9]", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /home/DESKTOP_USER/dev/auto-video-ingestscripts/scripts/auto-video-ingest-hook $kernel"
-   KERNEL=="sd*", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /home/DESKTOP_USER/dev/auto-video-ingest/scripts/auto-video-ingest-hook $kernel"
+   KERNEL=="mmcblk0p[0-9]", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /opt/auto-video-ingestscripts/scripts/auto-video-ingest-hook $kernel"
+   KERNEL=="sd*", ACTION=="add", SUBSYSTEM=="block", RUN+="/bin/bash /opt/auto-video-ingest/scripts/auto-video-ingest-hook $kernel"
    ```
 1) Add the auto-video-ingest-watchdog to your gnome startup applications
-1) Create configuration in  `/home/DESKTOP_USER/dev/auto-video-ingest/scripts/auto-video-ingest.cfg` (based on auto-video-ingest.cfg.example)
+1) Create configuration in  `/opt/auto-video-ingest/scripts/auto-video-ingest.cfg` (based on auto-video-ingest.cfg.example)
 1) Create a `auto-video-ingest.cfg` file on all drives you with to auto ingest with the following content (example!):
    ```
    NAME="Fatshark HDO"     # how should the target folder be named (i.e. camera name) and can contain spaces
