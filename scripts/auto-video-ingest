@@ -7,6 +7,7 @@ source $MYDIR/auto-video-ingest.cfg
 # All messages of one run share a single desktop notification, which gets
 # updated in place (notify-send --replace-id) instead of spamming new ones.
 NOTIFY_ID=""
+NOTIFY_TITLE="auto-video-ingest"
 
 # usage: log "message" [level]   (level: debug|normal|critical, default normal)
 #   debug:    low urgency, transient (not kept in the notification list), vanishes after 3s
@@ -24,11 +25,32 @@ function log {
 	esac
 	[[ -n "$NOTIFY_ID" ]] && ARGS+=(--replace-id="$NOTIFY_ID")
 	local NEW_ID
-	NEW_ID=$(notify-send "${ARGS[@]}" "auto-video-ingest" "$1" 2>/dev/null)
+	NEW_ID=$(notify-send "${ARGS[@]}" "$NOTIFY_TITLE" "$1" 2>/dev/null)
 	[[ "$NEW_ID" =~ ^[0-9]+$ ]] && NOTIFY_ID=$NEW_ID
 }
 
-log "Auto-video-ingest called for device $DEVICE" debug
+# Human readable description of a partition/device, e.g. '"EOS_DIGITAL" (59.5G, SD64G)'.
+# Uses the filesystem label, the size and the model of the parent disk (for USB
+# card readers this is the reader's model) or the card name (built-in mmc slots).
+function describe_device {
+	local DEV=$1 LABEL SIZE PARENT MODEL DESC
+	LABEL=$(lsblk --nodeps --noheadings --output LABEL "$DEV" 2>/dev/null)
+	SIZE=$(lsblk --nodeps --noheadings --output SIZE "$DEV" 2>/dev/null | tr -d ' ')
+	PARENT=$(lsblk --nodeps --noheadings --output PKNAME "$DEV" 2>/dev/null)
+	[[ -z "$PARENT" ]] && PARENT=$(basename "$DEV")
+	MODEL=$(lsblk --nodeps --noheadings --output MODEL "/dev/$PARENT" 2>/dev/null)
+	[[ -z "$MODEL" && -r "/sys/block/$PARENT/device/name" ]] && MODEL=$(<"/sys/block/$PARENT/device/name")
+	MODEL=$(echo "$MODEL" | xargs)	# trim whitespace
+
+	local DETAILS=""
+	[[ -n "$SIZE" && -n "$MODEL" ]] && DETAILS="$SIZE, $MODEL" || DETAILS="$SIZE$MODEL"
+	[[ -n "$LABEL" ]] && DESC="\"$LABEL\""
+	[[ -n "$DETAILS" ]] && DESC="${DESC:+$DESC }($DETAILS)"
+	echo "${DESC:-unknown device}"
+}
+
+DEVICE_DESC=$(describe_device "$DEVICE")
+log "Detected $DEVICE_DESC on $DEVICE" debug
 
 # this is only required for the stupid usb readers which are slow. and those are
 # only required because the intel nuc can not read one sandisk... thanks obama
@@ -42,17 +64,19 @@ DURATION=$(( $(date +%s) - START ))
 
 if [ -z "$MOUNTPOINT" ];
 then
-	log "No mount point for SD card $DEVICE found after 10 seconds. Exiting" debug
+	log "No mount point for $DEVICE_DESC on $DEVICE found after 10 seconds. Exiting" debug
 	exit 0
 else
-	log "Mount for SD card $DEVICE found on $MOUNTPOINT after $DURATION seconds" debug
+	# the label may not have been probed yet when we started, so refresh it
+	DEVICE_DESC=$(describe_device "$DEVICE")
+	log "Mount for $DEVICE_DESC on $DEVICE found on $MOUNTPOINT after $DURATION seconds" debug
 fi
 
 # Checking if SD card is configured for auto-video-ingest
 CARDCFG="$MOUNTPOINT/auto-video-ingest.cfg"
 if [ ! -f "$CARDCFG" ];
 then
-	log "Not auto-video-ingest configured SD card. Exiting and ignoring it." debug
+	log "$DEVICE_DESC is not an auto-video-ingest configured SD card. Ignoring it." debug
 	exit 0
 fi
 
@@ -67,6 +91,7 @@ while IFS= read -r LINE || [ -n "$LINE" ]; do
 		printf -v "${BASH_REMATCH[1]}" '%s' "${BASH_REMATCH[3]}${BASH_REMATCH[4]}${BASH_REMATCH[5]}"
 	fi
 done <"$CARDCFG"
+[[ -n "$NAME" ]] && NOTIFY_TITLE="auto-video-ingest: $NAME"
 
 # Checking if SD card configuration is valid
 if [ -z "$NAME" ];
