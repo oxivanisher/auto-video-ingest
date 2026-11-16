@@ -114,6 +114,48 @@ then
 	exit 0
 fi
 
+# read -a splits on whitespace without glob expansion, so "*.BIN" stays a pattern
+read -ra SRCDIR_LIST <<<"$SRCDIRS"
+read -ra EXCLUDE_LIST <<<"$EXCLUDES"
+EXCLUDE_ARGS=()
+for EXCLUDE in "${EXCLUDE_LIST[@]}"; do
+	EXCLUDE_ARGS+=(--exclude="$EXCLUDE")
+done
+
+# source folders which do not exist on this card are just skipped
+EXISTING_DIRS=()
+MISSING_DIRS=()
+for LOOPSRCDIR in "${SRCDIR_LIST[@]}"; do
+	if [ -d "$MOUNTPOINT/$LOOPSRCDIR" ]; then
+		EXISTING_DIRS+=("$LOOPSRCDIR")
+	else
+		MISSING_DIRS+=("$LOOPSRCDIR")
+	fi
+done
+MISSING_MSG=""
+[ ${#MISSING_DIRS[@]} -gt 0 ] && MISSING_MSG=" Source folder(s) not on card, skipped: ${MISSING_DIRS[*]}."
+
+function unmount_card {
+	sync
+	if umount "$MOUNTPOINT"; then
+		UNMOUNT_MSG="SD card unmounted, safe to remove."
+		UNMOUNT_OK=1
+	else
+		UNMOUNT_MSG="Could not unmount SD card $MOUNTPOINT!"
+		UNMOUNT_OK=0
+	fi
+}
+
+if [ ${#EXISTING_DIRS[@]} -eq 0 ]; then
+	unmount_card
+	if [ "$UNMOUNT_OK" -eq 1 ]; then
+		log "Nothing to ingest.$MISSING_MSG $UNMOUNT_MSG"
+		exit 0
+	fi
+	log "Nothing to ingest.$MISSING_MSG $UNMOUNT_MSG" critical
+	exit 1
+fi
+
 # ensure mounted NAS: TARGET (or the folder it is in) must be on a mount other than /
 TARGET_MOUNT=$(findmnt --noheadings --output TARGET --target "$TARGET" 2>/dev/null)
 if [ ! -d "$TARGET" ] || [ -z "$TARGET_MOUNT" ] || [ "$TARGET_MOUNT" = "/" ];
@@ -136,17 +178,9 @@ fi
 # doing the actual move and cleanup
 log "Moving files to $TARGETDIR"
 
-# read -a splits on whitespace without glob expansion, so "*.BIN" stays a pattern
-read -ra SRCDIR_LIST <<<"$SRCDIRS"
-read -ra EXCLUDE_LIST <<<"$EXCLUDES"
-EXCLUDE_ARGS=()
-for EXCLUDE in "${EXCLUDE_LIST[@]}"; do
-	EXCLUDE_ARGS+=(--exclude="$EXCLUDE")
-done
-
 MOVE_START=$(date +%s)
 FAILED_DIRS=()
-for LOOPSRCDIR in "${SRCDIR_LIST[@]}"; do
+for LOOPSRCDIR in "${EXISTING_DIRS[@]}"; do
 	# -t keeps the original modification time (recording date) of the files
 	if ! rsync -rt --backup --suffix="_$(date +%H-%M-%S)" --remove-source-files --log-file="$LOGFILE" "${EXCLUDE_ARGS[@]}" "$MOUNTPOINT/$LOOPSRCDIR/" "$TARGETDIR"; then
 		FAILED_DIRS+=("$LOOPSRCDIR")
@@ -154,21 +188,14 @@ for LOOPSRCDIR in "${SRCDIR_LIST[@]}"; do
 done
 MOVE_DURATION=$(( $(date +%s) - MOVE_START ))
 
-sync
-if umount "$MOUNTPOINT"; then
-	UNMOUNT_MSG="SD card unmounted, safe to remove."
-	UNMOUNT_OK=1
-else
-	UNMOUNT_MSG="Could not unmount SD card $MOUNTPOINT!"
-	UNMOUNT_OK=0
-fi
+unmount_card
 
 if [ ${#FAILED_DIRS[@]} -gt 0 ]; then
-	log "Moving FAILED for ${FAILED_DIRS[*]} after $MOVE_DURATION seconds. Remaining files are still on the card. $UNMOUNT_MSG" critical
+	log "Moving FAILED for ${FAILED_DIRS[*]} after $MOVE_DURATION seconds. Remaining files are still on the card.$MISSING_MSG $UNMOUNT_MSG" critical
 	exit 1
 elif [ "$UNMOUNT_OK" -eq 0 ]; then
-	log "File moving finished after $MOVE_DURATION seconds. $UNMOUNT_MSG" critical
+	log "File moving finished after $MOVE_DURATION seconds.$MISSING_MSG $UNMOUNT_MSG" critical
 	exit 1
 else
-	log "File moving finished after $MOVE_DURATION seconds. $UNMOUNT_MSG"
+	log "File moving finished after $MOVE_DURATION seconds.$MISSING_MSG $UNMOUNT_MSG"
 fi
