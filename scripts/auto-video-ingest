@@ -4,13 +4,31 @@
 MYDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $MYDIR/auto-video-ingest.cfg
 
+# All messages of one run share a single desktop notification, which gets
+# updated in place (notify-send --replace-id) instead of spamming new ones.
+NOTIFY_ID=""
+
+# usage: log "message" [level]   (level: debug|normal|critical, default normal)
+#   debug:    low urgency, transient (not kept in the notification list), vanishes after 3s
+#   normal:   regular notification
+#   critical: stays on screen until dismissed
 function log {
 	DATE=$(date "+%Y-%m-%d %H:%M:%S")
 	echo "$DATE $1" >>$LOGFILE
-	notify-send "auto-video-ingest" "$1"
+
+	local ARGS=(--app-name="auto-video-ingest" --print-id)
+	case "${2:-normal}" in
+		debug)    ARGS+=(--urgency=low --transient --expire-time=3000) ;;
+		critical) ARGS+=(--urgency=critical) ;;
+		*)        ARGS+=(--urgency=normal) ;;
+	esac
+	[[ -n "$NOTIFY_ID" ]] && ARGS+=(--replace-id="$NOTIFY_ID")
+	local NEW_ID
+	NEW_ID=$(notify-send "${ARGS[@]}" "auto-video-ingest" "$1" 2>/dev/null)
+	[[ "$NEW_ID" =~ ^[0-9]+$ ]] && NOTIFY_ID=$NEW_ID
 }
 
-log "Auto-video-ingest called for device $DEVICE"
+log "Auto-video-ingest called for device $DEVICE" debug
 
 # this is only required for the stupid usb readers which are slow. and those are
 # only required because the intel nuc can not read one sandisk... thanks obama
@@ -24,16 +42,16 @@ DURATION=$(( $(date +%s) - $START ))
 
 if [ -z "$MOUNTPOINT" ];
 then
-	log "No mount point for SD card $DEVICE found after 10 seconds. Exiting"
+	log "No mount point for SD card $DEVICE found after 10 seconds. Exiting" debug
 	exit 0
 else
-	log "Mount for SD card $DEVICE found on $MOUNTPOINT after $DURATION seconds"
+	log "Mount for SD card $DEVICE found on $MOUNTPOINT after $DURATION seconds" debug
 fi
 
 # Checking if SD card is configured for auto-video-ingest
 if [ ! -f $MOUNTPOINT/auto-video-ingest.cfg ];
 then
-	log "Not auto-video-ingest configured SD card. Exiting and ignoring it."
+	log "Not auto-video-ingest configured SD card. Exiting and ignoring it." debug
 	exit 0
 else
 	source $MOUNTPOINT/auto-video-ingest.cfg
@@ -42,12 +60,12 @@ fi
 # Checking if SD card configuration is valid
 if [ -z "$NAME" ];
 then
-	log "auto-video-ingest cfg NAME not set. Exiting..."
+	log "auto-video-ingest cfg NAME not set. Exiting..." critical
 	exit 0
 fi
 if [ -z "$SRCDIRS" ];
 then
-	log "auto-video-ingest cfg SRCDIRS not set. Exiting..."
+	log "auto-video-ingest cfg SRCDIRS not set. Exiting..." critical
 	exit 0
 fi
 if [ -z "$EXCLUDES" ];
@@ -56,14 +74,14 @@ then
 fi
 if [ -z "$SUBFOLDER" ];
 then
-	log "auto-video-ingest cfg SUBFOLDER not set. Exiting..."
+	log "auto-video-ingest cfg SUBFOLDER not set. Exiting..." critical
 	exit 0
 fi
 
 # ensure mounted NAS
 if [ -z "$(mount | grep $TARGET)" ];
 then
-	log "NAS not mounted on $TARGET. Exiting"
+	log "NAS not mounted on $TARGET. Exiting" critical
 	exit 1
 fi
 
@@ -74,7 +92,7 @@ TARGETDIR=Media/$SUBFOLDER/$(date +%Y)/$(date +%Y-%m-%d)
 mkdir -p "$TARGET/$TARGETDIR/$NAME"
 if [ ! -d "$TARGET/$TARGETDIR/$NAME" ];
 then
-	log "Unable to create target directory. Exiting"
+	log "Unable to create target directory. Exiting" critical
 	exit 1
 fi
 
