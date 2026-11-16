@@ -34,11 +34,11 @@ log "Auto-video-ingest called for device $DEVICE" debug
 # only required because the intel nuc can not read one sandisk... thanks obama
 START=$(date +%s)
 for try in {1..50} ; do
-	MOUNTPOINT=$(findmnt --source $DEVICE --output TARGET --noheadings)
-    [[ ! -z "$MOUNTPOINT" ]] && break
+	MOUNTPOINT=$(findmnt --source "$DEVICE" --output TARGET --noheadings)
+	[[ -n "$MOUNTPOINT" ]] && break
 	sleep .2
 done
-DURATION=$(( $(date +%s) - $START ))
+DURATION=$(( $(date +%s) - START ))
 
 if [ -z "$MOUNTPOINT" ];
 then
@@ -49,13 +49,24 @@ else
 fi
 
 # Checking if SD card is configured for auto-video-ingest
-if [ ! -f $MOUNTPOINT/auto-video-ingest.cfg ];
+CARDCFG="$MOUNTPOINT/auto-video-ingest.cfg"
+if [ ! -f "$CARDCFG" ];
 then
 	log "Not auto-video-ingest configured SD card. Exiting and ignoring it." debug
 	exit 0
-else
-	source $MOUNTPOINT/auto-video-ingest.cfg
 fi
+
+# Reading the SD card configuration. It is parsed instead of sourced, so a card
+# can only set these four keys and can not execute any code.
+# Accepted formats: KEY="value", KEY='value' or KEY=value, optionally followed by a # comment.
+NAME="" ; SRCDIRS="" ; EXCLUDES="" ; SUBFOLDER=""
+CFG_RE="^[[:space:]]*(NAME|SRCDIRS|EXCLUDES|SUBFOLDER)=(\"([^\"]*)\"|'([^']*)'|([^[:space:]#]*))"
+while IFS= read -r LINE || [ -n "$LINE" ]; do
+	LINE=${LINE%$'\r'}	# tolerate windows line endings
+	if [[ "$LINE" =~ $CFG_RE ]]; then
+		printf -v "${BASH_REMATCH[1]}" '%s' "${BASH_REMATCH[3]}${BASH_REMATCH[4]}${BASH_REMATCH[5]}"
+	fi
+done <"$CARDCFG"
 
 # Checking if SD card configuration is valid
 if [ -z "$NAME" ];
@@ -70,7 +81,7 @@ then
 fi
 if [ -z "$EXCLUDES" ];
 then
-	log "auto-video-ingest cfg EXCLUDES not set."
+	log "auto-video-ingest cfg EXCLUDES not set." debug
 fi
 if [ -z "$SUBFOLDER" ];
 then
@@ -78,41 +89,61 @@ then
 	exit 0
 fi
 
-# ensure mounted NAS
-if [ -z "$(mount | grep $TARGET)" ];
+# ensure mounted NAS: TARGET (or the folder it is in) must be on a mount other than /
+TARGET_MOUNT=$(findmnt --noheadings --output TARGET --target "$TARGET" 2>/dev/null)
+if [ ! -d "$TARGET" ] || [ -z "$TARGET_MOUNT" ] || [ "$TARGET_MOUNT" = "/" ];
 then
 	log "NAS not mounted on $TARGET. Exiting" critical
 	exit 1
 fi
 
 # creating definitive target directory variable
-TARGETDIR=Media/$SUBFOLDER/$(date +%Y)/$(date +%Y-%m-%d)
+TARGETDIR="$TARGET/Media/$SUBFOLDER/$(date +%Y)/$(date +%Y-%m-%d)/$NAME"
 
 # creating target dir
-mkdir -p "$TARGET/$TARGETDIR/$NAME"
-if [ ! -d "$TARGET/$TARGETDIR/$NAME" ];
+mkdir -p "$TARGETDIR"
+if [ ! -d "$TARGETDIR" ];
 then
 	log "Unable to create target directory. Exiting" critical
 	exit 1
 fi
 
 # doing the actual move and cleanup
-log "Moving files to $TARGET/$TARGETDIR/$NAME"
+log "Moving files to $TARGETDIR"
 
-# making sure the excludes file is empty
-truncate -s 0 /tmp/auto-video-ingest.excludes
-for EXCLUDE in $EXCLUDES;
-do
-	echo "$EXCLUDE" >>/tmp/auto-video-ingest.excludes
+# read -a splits on whitespace without glob expansion, so "*.BIN" stays a pattern
+read -ra SRCDIR_LIST <<<"$SRCDIRS"
+read -ra EXCLUDE_LIST <<<"$EXCLUDES"
+EXCLUDE_ARGS=()
+for EXCLUDE in "${EXCLUDE_LIST[@]}"; do
+	EXCLUDE_ARGS+=(--exclude="$EXCLUDE")
 done
 
 MOVE_START=$(date +%s)
-for LOOPSRCDIR in $SRCDIRS;
-do
-	rsync -r --backup --suffix="_$(date +%H-%M-%S)" --remove-source-files --log-file=$LOGFILE --exclude-from=/tmp/auto-video-ingest.excludes "$MOUNTPOINT/$LOOPSRCDIR/" "$TARGET/$TARGETDIR/$NAME"
+FAILED_DIRS=()
+for LOOPSRCDIR in "${SRCDIR_LIST[@]}"; do
+	# -t keeps the original modification time (recording date) of the files
+	if ! rsync -rt --backup --suffix="_$(date +%H-%M-%S)" --remove-source-files --log-file="$LOGFILE" "${EXCLUDE_ARGS[@]}" "$MOUNTPOINT/$LOOPSRCDIR/" "$TARGETDIR"; then
+		FAILED_DIRS+=("$LOOPSRCDIR")
+	fi
 done
-MOVE_FINISHED=$(date +%s)
-rm /tmp/auto-video-ingest.excludes
-log "File moving finished after $(( $MOVE_FINISHED - $MOVE_START )) seconds. Unmounting SD card."
+MOVE_DURATION=$(( $(date +%s) - MOVE_START ))
+
 sync
-umount $MOUNTPOINT
+if umount "$MOUNTPOINT"; then
+	UNMOUNT_MSG="SD card unmounted, safe to remove."
+	UNMOUNT_OK=1
+else
+	UNMOUNT_MSG="Could not unmount SD card $MOUNTPOINT!"
+	UNMOUNT_OK=0
+fi
+
+if [ ${#FAILED_DIRS[@]} -gt 0 ]; then
+	log "Moving FAILED for ${FAILED_DIRS[*]} after $MOVE_DURATION seconds. Remaining files are still on the card. $UNMOUNT_MSG" critical
+	exit 1
+elif [ "$UNMOUNT_OK" -eq 0 ]; then
+	log "File moving finished after $MOVE_DURATION seconds. $UNMOUNT_MSG" critical
+	exit 1
+else
+	log "File moving finished after $MOVE_DURATION seconds. $UNMOUNT_MSG"
+fi
